@@ -1,0 +1,210 @@
+
+#ifndef _MAIN
+#define _MAIN
+
+#include <iostream>
+#include "biblioteca/funciones/strings.hpp"
+#include "biblioteca/funciones/tokens.hpp"
+#include "biblioteca/funciones/files.hpp"
+#include "biblioteca/tads/parte2/Array.hpp"
+#include "biblioteca/tads/parte2/Map.hpp"
+#include "biblioteca/tads/parte2/List.hpp"
+#include "biblioteca/tads/parte2/Stack.hpp"
+#include "biblioteca/tads/parte2/Queue.hpp"
+#include "biblioteca/tads/parte1/Coll.hpp"
+#include "biblioteca/tads/parte1/MultidimColl.hpp"
+#include "principal.hpp"
+using namespace std;
+
+struct Resultado
+{
+   int idEq1;
+   int idEq2;
+   int codRes;
+   char estadio[20];
+};
+
+struct Equipo
+{
+   int idEq;
+   char nombre[20];
+   int puntos;
+};
+
+struct REquipo
+{
+   Equipo e;
+   int ptos;
+};
+
+struct REstad
+{
+   string estadio;
+   int cpj;
+   int cpe;
+};
+
+
+Map<int,REquipo> subirEquipos()
+{
+   Map<int,REquipo> ret = map<int,REquipo>();
+   FILE* f = fopen("EQUIPOS.dat","r+b");
+
+   Equipo e = read<Equipo>(f);
+   while( !feof(f) )
+   {
+      REquipo re = {e,0};
+      mapPut<int,REquipo>(ret,e.idEq,re);
+
+      e = read<Equipo>(f);
+   }
+
+   fclose(f);
+   return ret;
+}
+
+void procesarPunto1(Resultado r,Map<int,REquipo> mEq)
+{
+   int p1 = r.codRes < 0 ? 3 : r.codRes > 0 ? 0 : 1;
+   mapGet<int,REquipo>(mEq,r.idEq1)->ptos+=p1;
+
+   int p2 = r.codRes<0?0:r.codRes>0?3:1;
+   mapGet<int,REquipo>(mEq,r.idEq2)->ptos+=p2;
+}
+
+int cmpREquipo(REquipo re1,REquipo re2)
+{
+   int p1 = re1.e.puntos+re1.ptos;
+   int p2 = re2.e.puntos+re2.ptos;
+   return p2-p1;
+}
+
+void mostrarPunto1(Map<int,REquipo> mEq)
+{
+   mapSortByValues<int,REquipo>(mEq,cmpREquipo);
+
+   mapReset<int,REquipo>(mEq);
+   while( mapHasNext<int,REquipo>(mEq) )
+   {
+      REquipo* re = mapNextValue<int,REquipo>(mEq);
+
+      string nom = re->e.nombre;
+      int ptos = re->ptos+re->e.puntos;
+
+      cout << nom << ", " << ptos << endl;
+   }
+}
+
+// Función para crear un objeto REstad con valores predeterminados
+
+REstad rEstad(string& estadio, int cpj, int cpe)
+{
+   REstad e;
+   e.estadio= "";
+   e.cpj = 0;
+   e.cpe = 0;
+   return e;
+}
+
+void procesarPunto2 (Resultado r, Map<string,REstad>& mEs)
+{
+   string estadio = r.estadio;
+
+   REstad re = rEstad (estadio,0,0);
+   REstad* x = mapDiscover<string,REstad> (mEs,estadio,re);
+
+   x->cpj++;
+   if (r.codRes==0)
+   {
+      x->cpe++;
+   }
+}
+
+void mostrarPunto2 (Map<string,REstad> mEs)
+{
+   mapReset <string,REstad>(mEs);
+   while (mapHasNext <string,REstad>(mEs))
+   {
+      REstad* re = mapNextValue<string,REstad>(mEs);
+
+      string estadio = re->estadio;
+      int cpj = re->cpj;
+      int cpe = re->cpe;
+      cout << estadio << ": " << cpj << "partidos jugados, " << cpe << "partidos empatados" << endl;
+
+   }
+}
+
+void procesarPunto3 (Map<int,REquipo> mEq)
+{
+   cout << "entro a procesar 3" << endl;
+   // "r+b" permite modificar registros y agregar al final
+   FILE* f = fopen ("EQUIPOSM.dat","r+b");
+
+   if (feof (f))
+   {
+      cout << "final de f" << endl;
+   }
+   Equipo e;
+   size_t recordSize = sizeof(Equipo);
+   size_t pos = 0;
+
+   while (fread(&e,recordSize,1,f) == 1)
+   {
+      REquipo* re = mapGet (mEq, e.idEq);
+      if (re)
+      {
+         re->e.puntos += re->ptos;
+
+         fseek (f,pos,SEEK_SET);
+         fwrite (&(re->e), recordSize,1,f);
+      }
+      pos = ftell (f);
+   }
+   fclose (f);
+
+}
+
+void mostrarPunto3 (Map<int,REquipo> mEq)
+{
+   mapReset <int,REquipo> (mEq);
+   while (mapHasNext<int,REquipo> (mEq))
+   {
+      REquipo* re = mapNextValue<int,REquipo> (mEq);
+
+      string nombre = re ->e.nombre;
+      int totalPuntos = re->e.puntos + re->ptos;
+      cout << nombre << ": " << totalPuntos << "puntos" << endl;
+   }
+}
+
+int main()
+{
+   Map<int,REquipo> mEq = subirEquipos();
+
+   Map<string,REstad> mEs = map<string,REstad>();
+
+   FILE* f = fopen("RESULTADOS.dat","r+b");
+
+   Resultado r = read<Resultado>(f);
+   while( !feof(f) )
+   {
+      procesarPunto1(r,mEq);
+      procesarPunto2(r,mEs);
+      r = read<Resultado>(f);
+   }
+
+   mostrarPunto1(mEq);
+   mostrarPunto2(mEs);
+
+   fclose(f);
+
+   procesarPunto3(mEq);
+   mostrarPunto3(mEq);
+
+
+
+   return 0;
+}
+
+#endif
