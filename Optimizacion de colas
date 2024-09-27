@@ -1,0 +1,128 @@
+
+#ifndef _MAIN
+#define _MAIN
+
+#include <iostream>
+#include "biblioteca/funciones/strings.hpp"
+#include "biblioteca/funciones/tokens.hpp"
+#include "biblioteca/funciones/files.hpp"
+#include "biblioteca/tads/parte2/Array.hpp"
+#include "biblioteca/tads/parte2/Map.hpp"
+#include "biblioteca/tads/parte2/List.hpp"
+#include "biblioteca/tads/parte2/Stack.hpp"
+#include "biblioteca/tads/parte2/Queue.hpp"
+#include "biblioteca/tads/parte1/Coll.hpp"
+#include "biblioteca/tads/parte1/MultidimColl.hpp"
+#include "principal.hpp"
+using namespace std;
+
+struct Mov
+{
+   int idCli; // Identificador del cliente
+   char mov; // Movimiento: 'E' (entrada) o 'S' (salida)
+   int hora; // Hora en formato hhmm (hora y minuto)
+};
+
+// Estructura para almacenar los tiempos
+struct cData
+{
+   Queue<int> cola; // Cola de clientes en la caja
+   int tiempoEspera; // Tiempo de espera acumulado
+   int tiempoOcioso; // Tiempo ocioso acumulado
+   int horaUltimoCliente; // Hora del ultimo cliente atendido
+};
+
+// Inicializacion de la estructura de cdata
+cData cdata ()
+{
+   cData c;
+   c.tiempoEspera = 0;
+   c.tiempoOcioso = 0;
+   c.horaUltimoCliente = 0;
+   c.cola = queue<int> ();
+   return c;
+}
+
+// Funcion para calcular la diferencia de tiempos en formato hhmm
+int diferenciaTiempo (int inicio, int fin)
+{
+   int horasInicio = inicio / 100;
+   int minutosInicio = inicio % 100;
+   int horasFin = fin / 100;
+   int minutosFin = fin % 100;
+
+   int totalInicio = horasInicio * 60 + minutosInicio;
+   int totalFin = horasFin * 60 + minutosFin;
+
+   return totalFin - totalInicio;
+}
+
+// Funcion para procesar un movimiento
+void procesarMovimiento  (Mov movimiento, Map<int, cData>& mapa)
+{
+   cData datos = cData (); // Datos por defecto para la caja
+   Queue<int>* colaCaja = mapDiscover<int, cData>(mapa, movimiento.idCli, datos);
+
+   if (movimiento.mov == 'E') // Cliente entra
+   {
+      // Verificar si la cola esta vacia
+      if (queueIsEmpty(*colaCaja))
+      {
+         // Si la caja esta vacia, acumular tiempo ocioso
+         datos.tiempoOcioso += diferenciaTiempo (datos.horaUltimoCliente, movimiento.hora)
+      }
+      // Encolar el cliente en la caja
+      queueEnqueue (*colaCaja, movimiento.idCli);
+      datos.horaUltimoCliente = movimiento.hora; // Actualizar la hora del ultimo cliente atendido
+   }
+   else if (movimiento.mov == 'S') // Cliente sale
+   {
+      // Desencolar al cliente
+      if (!queueIsEmpty (*colaCaja))
+      {
+         // Desencolar el client y verificar si es el que tiene que salir;
+         int clienteFrente = queueDequeue (*colaCaja);
+
+         if (clienteFrente == movimiento.idCli)
+         {
+            // Actualizar el tiempo de espera acumulado
+            datos.tiempoEspera += diferenciaTiempo (datos.horaUltimoCliente, movimiento.hora);
+            datos.horaUltimoCliente = movimiento.hora;
+         }
+         else
+         {
+            // Si el cliente desencolado no es el que tiene que salir, algo fallo en la secuencia de movimientos
+            cout << "Error: Cliente desencolado no coincide con el que deberia salir" << endl;
+         }
+      }
+   }
+   // Actualizar el mapa con los de la caja
+   mapa[movimiento.idCli] = datos;
+}
+
+// Funcion principal
+int main()
+{
+   Map<int, cData> mapa = map<int, cData>();
+   FILE* f = fopen("MOVIMIENTOS.dat", "r+b");
+
+   //leer el siguiente movimiento
+   Mov siguiente = read<Mov> (f);
+   while (!feof (f))
+   {
+      procesarMovimiento (siguiente, mapa);
+      siguiente = read<Mov> (f);
+   }
+   fclose (f);
+
+   // Mostrar resultados finales
+   cout << "Caja\tTiempo de espera\tTiempo ocioso" << endl;
+   for (int i = 0; i < mapSize<int, cData> (mapa); i++)
+   {
+      cData datos = mapFind <int, cData> (mapa, i);
+      cout << i << "\t" << datos.tiempoEspera << "t\t\t" << datos.tiempoOcioso << endl;
+   }
+   return 0;
+}
+
+#endif
