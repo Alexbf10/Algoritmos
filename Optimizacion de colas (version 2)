@@ -1,0 +1,209 @@
+#ifndef _MAIN
+#define _MAIN
+
+#include <iostream>
+#include "biblioteca/funciones/strings.hpp"
+#include "biblioteca/funciones/tokens.hpp"
+#include "biblioteca/funciones/files.hpp"
+#include "biblioteca/tads/parte2/Array.hpp"
+#include "biblioteca/tads/parte2/Map.hpp"
+#include "biblioteca/tads/parte2/List.hpp"
+#include "biblioteca/tads/parte2/Stack.hpp"
+#include "biblioteca/tads/parte2/Queue.hpp"
+#include "biblioteca/tads/parte1/Coll.hpp"
+#include "biblioteca/tads/parte1/MultidimColl.hpp"
+using namespace std;
+
+struct Mov
+{
+   int idCli;
+   char mov; // 'E' o 'S'
+   int hora; // hhmm
+};
+
+struct Caja
+{
+   Queue<Mov> cola;
+   Array<int> idClientes;
+   int primerAtendido;
+   int horaTrabajo;
+   int horaEspera;
+   int tamanioCaja;
+};
+
+Caja caja()
+{
+   Caja caja;
+   caja.cola = queue<Mov>();
+   caja.idClientes = Array<int>();
+   caja.primerAtendido = 0;
+   caja.horaEspera = 0;
+   caja.horaTrabajo = 0;
+   caja.tamanioCaja = -1;
+   return caja;
+}
+
+void AgregarSimulacion(Map<int, Array<Caja>> mapCajas)
+{
+   int cantCajas = 1;
+   while( cantCajas<0 )
+   {
+      cout<<"ingrese cantidad de cajas"<<endl;
+      cin>>cantCajas;
+
+      Caja null = caja();
+      //creo las simulaciones con las cajas
+      Array<Caja> aCajas = array<Caja>();
+      for( int i = 0; i<cantCajas; i++ )
+      {
+         arrayAdd(aCajas,null);
+      }
+
+      mapPut(mapCajas,cantCajas,aCajas);
+   }
+}
+
+int cmpId(int id, int id2)
+{
+   return id-id2;
+}
+
+Caja* BusacarCaja(Array<Caja> aCajas)
+{
+   Caja menor;
+   for( int i = 0; i<arraySize(aCajas); i++ )
+   {
+
+      Caja* caja = arrayGet(aCajas,i);
+      if( caja->tamanioCaja<menor.tamanioCaja||menor.tamanioCaja<0 )
+      {
+         menor = *(caja);
+      }
+   }
+   return &(menor);
+}
+
+void Proceso(Array<Caja> aCajas, Mov aux)
+{
+
+   //si es entrada, lo pongo en la caja de menor cola
+   if( aux.mov=='E' )
+   {
+      Caja* caja = BusacarCaja(aCajas);
+
+      //si no habia nadie en cola, recein empieza el trabajo
+      if( queueIsEmpty(caja->cola) )
+      {
+         caja->primerAtendido = aux.hora;
+      }
+      queueEnqueue(caja->cola,aux);
+      arrayAdd(caja->idClientes,aux.idCli);
+   }
+
+   //si sale
+   if( aux.mov=='S' )
+   {
+      //busco la caja con el idCli
+      bool find;
+      int numeroCaja;
+      for( int i = 0; i<arraySize(aCajas)&&!find; i++ )
+      {
+         Caja caja = aCajas.array[i];
+         int pos = arrayFind(caja.idClientes,aux.idCli,cmpId);
+
+         if( pos>0 )
+         {
+            find = true;
+            numeroCaja = i;
+         }
+      }
+
+      //Lo saco y proceso
+      Caja* caja = arrayGet(aCajas,numeroCaja);
+      Mov mov = queueDequeue(caja->cola);
+      caja->horaEspera = caja->horaEspera+aux.hora-mov.hora;
+      //si es el ultimo, termino de trabajar por ahora
+      if( queueIsEmpty(caja->cola) )
+      {
+         caja->horaTrabajo = caja->horaTrabajo+aux.hora-caja->primerAtendido;
+      }
+   }
+
+}
+
+int HoraEspera(Array<Caja> aCajas)
+{
+   int espera = 0;
+   int cantPersonas = 0;
+
+   for( int i = 0; i<arraySize(aCajas); i++ )
+      {
+         Caja* caja = arrayGet(aCajas,i);
+         espera = espera + caja->horaEspera;
+         cantPersonas = cantPersonas + arraySize(caja->idClientes);
+      }
+
+   return espera/cantPersonas;
+}
+
+int HoraOscio(Array<Caja> aCajas)
+{
+   int horaOscio = 0;
+   for( int i = 0; i<arraySize(aCajas); i++ )
+         {
+            Caja* caja = arrayGet(aCajas,i);
+            horaOscio = horaOscio + 10 - caja->horaTrabajo;
+         }
+   return horaOscio;
+}
+
+void Mostrar(Map<int, Array<Caja>> mapCajas)
+{
+   mapReset(mapCajas);
+   for( int i = 0; i<mapSize(mapCajas); i++ )
+   {
+      cout<<mapNextKey(mapCajas)<<"   ";
+   }
+   cout<<endl;
+
+   for( int i = 0; i<mapSize(mapCajas); i++ )
+   {
+      Array<Caja> aCajas = *(mapGet(mapCajas,i));
+      cout<<HoraEspera(aCajas)<<"   ";
+   }
+   cout<<endl;
+
+   for( int i = 0; i<mapSize(mapCajas); i++ )
+   {
+      Array<Caja> aCajas = *(mapGet(mapCajas,i));
+      cout<<HoraOscio(aCajas)<<"   ";
+   }
+   cout<<endl;
+}
+
+int main()
+{
+   Map<int, Array<Caja>> mapCajas = map<int, Array<Caja>>();
+
+   AgregarSimulacion(mapCajas);
+
+   FILE* f = fopen("MOVIMIENTOS.dat","w+b");
+   Mov aux = read<Mov>(f);
+
+   //recorro el file
+   while( !feof(f) )
+   {
+      for( int i = 0; i<mapSize(mapCajas); i++ )
+      {
+         Array<Caja> aCajas = *(mapGet(mapCajas,i));
+         Proceso(aCajas,aux);
+      }
+      aux = read<Mov>(f);
+   }
+   fclose(f);
+
+   Mostrar(mapCajas);
+   return 0;
+}
+
+#endif
