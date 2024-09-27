@@ -14,196 +14,239 @@
 #include "biblioteca/tads/parte1/MultidimColl.hpp"
 using namespace std;
 
+// Estructura que representa un movimiento de cliente en una caja.
 struct Mov
 {
-   int idCli;
-   char mov; // 'E' o 'S'
-   int hora; // hhmm
+   int idCli;  // ID del cliente
+   char mov;   // 'E' para entrada, 'S' para salida
+   int hora;   // Hora en formato hhmm
 };
 
+// Estructura que representa una caja de supermercado.
 struct Caja
 {
-   Queue<Mov> cola;
-   Array<int> idClientes;
-   int primerAtendido;
-   int horaTrabajo;
-   int horaEspera;
-   int tamanioCaja;
+   Queue<Mov> cola;         // Cola de movimientos de los clientes
+   Array<int> idClientes;   // IDs de clientes atendidos en la caja
+   int primerAtendido;      // Hora en la que se atendió al primer cliente
+   int horaTrabajo;         // Total de tiempo trabajado
+   int horaEspera;          // Total de tiempo de espera de los clientes
+   int tamanioCaja;         // Cantidad de clientes en la cola (tamaño de la cola)
 };
 
+// Función para inicializar una nueva estructura Caja con valores por defecto.
 Caja caja()
 {
    Caja caja;
-   caja.cola = queue<Mov>();
-   caja.idClientes = Array<int>();
-   caja.primerAtendido = 0;
-   caja.horaEspera = 0;
-   caja.horaTrabajo = 0;
-   caja.tamanioCaja = -1;
-   return caja;
+   caja.cola = queue<Mov>();          // Inicializa la cola vacía
+   caja.idClientes = Array<int>();    // Inicializa el array de clientes vacío
+   caja.primerAtendido = 0;           // Sin clientes aún atendidos
+   caja.horaEspera = 0;               // Sin tiempo de espera acumulado
+   caja.horaTrabajo = 0;              // Sin tiempo de trabajo acumulado
+   caja.tamanioCaja = -1;             // Indica que la caja no tiene clientes
+   return caja;                       // Retorna la caja inicializada
 }
 
+// Función para agregar simulaciones al mapa de cajas.
 void AgregarSimulacion(Map<int, Array<Caja>> mapCajas)
 {
    int cantCajas = 1;
-   while( cantCajas<0 )
+   while (cantCajas < 0)
    {
-      cout<<"ingrese cantidad de cajas"<<endl;
-      cin>>cantCajas;
+      // Solicita la cantidad de cajas al usuario
+      cout << "Ingrese cantidad de cajas" << endl;
+      cin >> cantCajas;
 
+      // Inicializa una caja vacía
       Caja null = caja();
-      //creo las simulaciones con las cajas
+      
+      // Crea un array de cajas vacío
       Array<Caja> aCajas = array<Caja>();
-      for( int i = 0; i<cantCajas; i++ )
+      
+      // Agrega 'null' en cada posición del array según la cantidad de cajas
+      for (int i = 0; i < cantCajas; i++)
       {
-         arrayAdd(aCajas,null);
+         arrayAdd(aCajas, null);
       }
 
-      mapPut(mapCajas,cantCajas,aCajas);
+      // Agrega el array de cajas al mapa con la cantidad de cajas como clave
+      mapPut(mapCajas, cantCajas, aCajas);
    }
 }
 
+// Función de comparación para buscar clientes por ID
 int cmpId(int id, int id2)
 {
-   return id-id2;
+   return id - id2;  // Retorna la diferencia entre los dos IDs
 }
 
+// Función para buscar la caja con menos clientes en la cola
 Caja* BusacarCaja(Array<Caja> aCajas)
 {
    Caja menor;
-   for( int i = 0; i<arraySize(aCajas); i++ )
+   for (int i = 0; i < arraySize(aCajas); i++)
    {
+      // Obtiene la caja en la posición 'i'
+      Caja* caja = arrayGet(aCajas, i);
 
-      Caja* caja = arrayGet(aCajas,i);
-      if( caja->tamanioCaja<menor.tamanioCaja||menor.tamanioCaja<0 )
+      // Busca la caja con el menor tamaño de cola
+      if (caja->tamanioCaja < menor.tamanioCaja || menor.tamanioCaja < 0)
       {
          menor = *(caja);
       }
    }
-   return &(menor);
+   return &(menor);  // Retorna un puntero a la caja con la menor cola
 }
 
+// Función que procesa la entrada o salida de un cliente
 void Proceso(Array<Caja> aCajas, Mov aux)
 {
-
-   //si es entrada, lo pongo en la caja de menor cola
-   if( aux.mov=='E' )
+   // Si el movimiento es de entrada ('E')
+   if (aux.mov == 'E')
    {
+      // Busca la caja con la menor cola
       Caja* caja = BusacarCaja(aCajas);
 
-      //si no habia nadie en cola, recein empieza el trabajo
-      if( queueIsEmpty(caja->cola) )
+      // Si la caja está vacía, inicia el trabajo en la hora de llegada
+      if (queueIsEmpty(caja->cola))
       {
          caja->primerAtendido = aux.hora;
       }
-      queueEnqueue(caja->cola,aux);
-      arrayAdd(caja->idClientes,aux.idCli);
+
+      // Agrega el cliente a la cola de la caja y registra su ID
+      queueEnqueue(caja->cola, aux);
+      arrayAdd(caja->idClientes, aux.idCli);
    }
 
-   //si sale
-   if( aux.mov=='S' )
+   // Si el movimiento es de salida ('S')
+   if (aux.mov == 'S')
    {
-      //busco la caja con el idCli
-      bool find;
+      // Busca la caja que contiene al cliente por su ID
+      bool find = false;
       int numeroCaja;
-      for( int i = 0; i<arraySize(aCajas)&&!find; i++ )
+      for (int i = 0; i < arraySize(aCajas) && !find; i++)
       {
          Caja caja = aCajas.array[i];
-         int pos = arrayFind(caja.idClientes,aux.idCli,cmpId);
+         int pos = arrayFind(caja.idClientes, aux.idCli, cmpId);
 
-         if( pos>0 )
+         // Si se encuentra la caja, guarda su índice
+         if (pos > 0)
          {
             find = true;
             numeroCaja = i;
          }
       }
 
-      //Lo saco y proceso
-      Caja* caja = arrayGet(aCajas,numeroCaja);
-      Mov mov = queueDequeue(caja->cola);
-      caja->horaEspera = caja->horaEspera+aux.hora-mov.hora;
-      //si es el ultimo, termino de trabajar por ahora
-      if( queueIsEmpty(caja->cola) )
+      // Procesa la salida del cliente de la cola
+      Caja* caja = arrayGet(aCajas, numeroCaja);
+      Mov mov = queueDequeue(caja->cola);  // Elimina al cliente de la cola
+      caja->horaEspera = caja->horaEspera + aux.hora - mov.hora;  // Actualiza el tiempo de espera
+
+      // Si no quedan clientes en la cola, actualiza el tiempo de trabajo
+      if (queueIsEmpty(caja->cola))
       {
-         caja->horaTrabajo = caja->horaTrabajo+aux.hora-caja->primerAtendido;
+         caja->horaTrabajo = caja->horaTrabajo + aux.hora - caja->primerAtendido;
       }
    }
-
 }
 
+// Función que calcula el tiempo promedio de espera de los clientes
 int HoraEspera(Array<Caja> aCajas)
 {
    int espera = 0;
    int cantPersonas = 0;
 
-   for( int i = 0; i<arraySize(aCajas); i++ )
-      {
-         Caja* caja = arrayGet(aCajas,i);
-         espera = espera + caja->horaEspera;
-         cantPersonas = cantPersonas + arraySize(caja->idClientes);
-      }
+   // Recorre todas las cajas y suma los tiempos de espera y la cantidad de clientes
+   for (int i = 0; i < arraySize(aCajas); i++)
+   {
+      Caja* caja = arrayGet(aCajas, i);
+      espera = espera + caja->horaEspera;
+      cantPersonas = cantPersonas + arraySize(caja->idClientes);
+   }
 
-   return espera/cantPersonas;
+   // Calcula y retorna el tiempo de espera promedio
+   return espera / cantPersonas;
 }
 
+// Función que calcula el tiempo ocioso de las cajas
 int HoraOscio(Array<Caja> aCajas)
 {
    int horaOscio = 0;
-   for( int i = 0; i<arraySize(aCajas); i++ )
-         {
-            Caja* caja = arrayGet(aCajas,i);
-            horaOscio = horaOscio + 10 - caja->horaTrabajo;
-         }
+
+   // Suma el tiempo ocioso de cada caja
+   for (int i = 0; i < arraySize(aCajas); i++)
+   {
+      Caja* caja = arrayGet(aCajas, i);
+      horaOscio = horaOscio + 10 - caja->horaTrabajo;  // Suponiendo que el total de tiempo es 10
+   }
+
+   // Retorna el tiempo ocioso total
    return horaOscio;
 }
 
+// Función que muestra los resultados de la simulación
 void Mostrar(Map<int, Array<Caja>> mapCajas)
 {
    mapReset(mapCajas);
-   for( int i = 0; i<mapSize(mapCajas); i++ )
+   
+   // Muestra la cantidad de cajas
+   for (int i = 0; i < mapSize(mapCajas); i++)
    {
-      cout<<mapNextKey(mapCajas)<<"   ";
+      cout << mapNextKey(mapCajas) << "   ";
    }
-   cout<<endl;
+   cout << endl;
 
-   for( int i = 0; i<mapSize(mapCajas); i++ )
+   // Muestra el tiempo de espera promedio para cada cantidad de cajas
+   for (int i = 0; i < mapSize(mapCajas); i++)
    {
-      Array<Caja> aCajas = *(mapGet(mapCajas,i));
-      cout<<HoraEspera(aCajas)<<"   ";
+      Array<Caja> aCajas = *(mapGet(mapCajas, i));
+      cout << HoraEspera(aCajas) << "   ";
    }
-   cout<<endl;
+   cout << endl;
 
-   for( int i = 0; i<mapSize(mapCajas); i++ )
+   // Muestra el tiempo ocioso para cada cantidad de cajas
+   for (int i = 0; i < mapSize(mapCajas); i++)
    {
-      Array<Caja> aCajas = *(mapGet(mapCajas,i));
-      cout<<HoraOscio(aCajas)<<"   ";
+      Array<Caja> aCajas = *(mapGet(mapCajas, i));
+      cout << HoraOscio(aCajas) << "   ";
    }
-   cout<<endl;
+   cout << endl;
 }
 
+// Función principal que ejecuta la simulación
 int main()
 {
+   // Inicializa un mapa que relaciona cantidad de cajas con arrays de cajas
    Map<int, Array<Caja>> mapCajas = map<int, Array<Caja>>();
 
+   // Agrega las simulaciones de cajas
    AgregarSimulacion(mapCajas);
 
-   FILE* f = fopen("MOVIMIENTOS.dat","w+b");
-   Mov aux = read<Mov>(f);
+   // Abre el archivo que contiene los movimientos de los clientes
+   FILE* f = fopen("MOVIMIENTOS.dat", "w+b");  // Abre el archivo MOVIMIENTOS.dat para lectura/escritura
+   Mov aux = read<Mov>(f);  // Lee el primer movimiento del archivo
 
-   //recorro el file
-   while( !feof(f) )
+   // Recorre todo el archivo procesando cada movimiento
+   while (!feof(f))
    {
-      for( int i = 0; i<mapSize(mapCajas); i++ )
+      // Recorre todas las simulaciones de cajas en el mapa
+      for (int i = 0; i < mapSize(mapCajas); i++)
       {
-         Array<Caja> aCajas = *(mapGet(mapCajas,i));
-         Proceso(aCajas,aux);
+         // Obtiene el array de cajas asociado a la cantidad de cajas 'i'
+         Array<Caja> aCajas = *(mapGet(mapCajas, i));
+
+         // Procesa el movimiento del cliente (entrada o salida) para las cajas
+         Proceso(aCajas, aux);
       }
+      // Lee el siguiente movimiento del archivo
       aux = read<Mov>(f);
    }
-   fclose(f);
 
+   fclose(f);  // Cierra el archivo MOVIMIENTOS.dat
+
+   // Muestra los resultados de la simulación: tiempos de espera y ocio
    Mostrar(mapCajas);
-   return 0;
+
+   return 0;  // Finaliza el programa
 }
 
 #endif
