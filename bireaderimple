@@ -1,0 +1,54 @@
+package imple;
+
+import java.io.IOException;
+import java.io.InputStream;
+import huffman.def.BitReader;
+
+public class BitReaderImple implements BitReader
+{
+	private InputStream inputStream; // Flujo de entrada desde donde leer
+	private int buffer;              // Almacena el byte actual
+	private int bufferPos;           // Posicion actual del bit en el byte
+	
+	@Override
+	public void using(InputStream is)
+	{
+		this.inputStream = is;
+		this.buffer = 0;
+		this.bufferPos = 8; // Comienza en 8 para que se lea un nuevo byte al inicio
+	}
+
+	@Override
+	public int readBit()
+	{
+		if (bufferPos == 8) // Si se han leido los 8 bits del byte, leer un nuevo byte
+		{
+		try // ???
+		{
+			buffer = inputStream.read(); /// ???
+			if (buffer == -1) 
+			{
+				return -1; // EOF, fin del archivo
+			}
+		}
+		catch (IOException e) /// ???
+		{
+			return -1; // En cado de error de lectura, tambien consideramos EOF
+		}
+		bufferPos = 0; // Reiniciar la posicion del buffer
+		}
+		
+		// Leer el bit en la posicion actual del buffer
+		int bit = ( buffer >> (7 - bufferPos)) & 1; // ???
+		bufferPos++; // Avanzar al siguiente bit
+		return bit;
+	}
+	
+	@Override
+	public void flush()
+	{
+		buffer = 0; // Vaciamos el buffer
+		bufferPos = 8; // Indicamos que el buffer esta "lleno", lo que obligara a leer un nuevo byte
+	}
+
+}
