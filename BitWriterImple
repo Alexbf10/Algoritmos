@@ -1,0 +1,51 @@
+package imple;
+
+import java.io.OutputStream;
+import java.io.IOException;
+import huffman.def.BitWriter;
+
+public class BitWriterImple implements BitWriter 
+{
+	private OutputStream outputstream; // El flujo de salida donde se escribiran los bits
+	private int buffer; // Buffer para almacenar los bits
+	private int bufferPos; // Posicion actual en el buffer (0-7)
+	
+    @Override
+    public void using(OutputStream os) // ???
+    {
+    	outputstream = os; // Configura el flujo de salida
+    	this.buffer = 0;
+    	this.bufferPos = 0;
+    }
+
+    @Override
+    public void writeBit(int bit) 
+    {
+    	buffer = (buffer << 1)| bit; // Desplaza el buffer a la izquierda y agrega el nuevo bit //
+    	bufferPos++;
+    	
+    	// Si el buffer esta lleno (8 bits), se escribe en el outputStream
+    	if (bufferPos == 8) 
+    	{
+    		try 
+    		{
+    			outputstream.write(buffer);
+    			bufferPos = 0;
+    		}
+    		catch(IOException e) 
+    		{
+    			System.out.print("ERROR");
+    		}
+    	}
+    }
+        
+    @Override
+    public void flush() 
+    {
+    	int amount = 8 - bufferPos;
+    	for (int i=0; i< amount; i++)
+    	{
+    		writeBit(0);
+    	}
+    }
+}
