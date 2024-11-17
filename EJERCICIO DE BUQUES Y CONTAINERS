@@ -1,0 +1,154 @@
+
+#ifndef _MAIN
+#define _MAIN
+
+#include <iostream>
+#include "biblioteca/funciones/strings.hpp"
+#include "biblioteca/funciones/tokens.hpp"
+#include "biblioteca/funciones/files.hpp"
+#include "biblioteca/tads/parte2/Array.hpp"
+#include "biblioteca/tads/parte2/Map.hpp"
+#include "biblioteca/tads/parte2/List.hpp"
+#include "biblioteca/tads/parte2/Stack.hpp"
+#include "biblioteca/tads/parte2/Queue.hpp"
+#include "biblioteca/tads/parte1/Coll.hpp"
+#include "biblioteca/tads/parte1/MultidimColl.hpp"
+#include "principal.hpp"
+using namespace std;
+
+// PROBLEMA DE BUQUES Y CONTAINERS
+
+struct Fecha
+{
+   int dia, mes, anio; // Puedes agregar las funciones necesarias para manipular esta estructura.
+};
+
+// Definición del operador de salida para Fecha
+std::ostream& operator<<(std::ostream& os, const Fecha& fecha) {
+    os << fecha.dia << "/" << fecha.mes << "/" << fecha.anio; // Formato dd/mm/aaaa
+    return os;
+}
+
+struct Buque
+{
+   int idBuque;
+   char nombre[50];
+   int darsena;
+   int grua;
+   int cantContainers;
+   Fecha fecha; // llegada o salida
+   int cteFlotacion;
+   char oriODest[100];
+};
+struct Container
+{
+   int idContainer;
+   int peso;
+   int longitud;
+   int idBuque;
+};
+
+// Prototipo de función estable
+bool estable(int peso, int longitud, int cteFlotacion)
+{
+    // Aquí va la lógica de la función que verifica si el buque permanece estable.
+    // Se asume que ya la tienes definida o puedes adaptarla según sea necesario.
+    return true;  // Esto es solo un valor de retorno temporal.
+}
+
+Map<int, Queue<Container>> subirContainers()
+{
+   Map<int, Queue<Container>> ret = map <int, Queue<Container>> ();
+
+   FILE* f = fopen ("CONTAINERS.dat", "r+b");
+   Container e = read<Container> (f);
+   while (!feof(f))
+   {
+      Queue<Container>* q = mapDiscover<int, Queue<Container>> (ret, e.idContainer, Queue <Container>());
+      queueEnqueue <Container> (*q, e);
+      e = read<Container> (f);
+   }
+
+   fclose (f);
+   return ret;
+}
+
+Map<int, Buque> subirBuques ()
+{
+   Map<int, Buque> ret = map<int, Buque>();
+
+   FILE* f = fopen ("BUQUES.dat", "r+b");
+   Buque b = read<Buque> (f);
+   while (!feof(f))
+   {
+      mapPut<int, Buque> (ret, b.idBuque, b);
+      b = read<Buque> (f);
+   }
+
+   fclose (f);
+   return ret;
+}
+
+void procesarBuques (Map <int, Buque> buques, Map <int, Queue<Container>>& mContainers)
+{
+   mapReset <int, Buque> (buques);
+   while (mapHasNext<int, Buque> (buques))
+   {
+      Buque* bPtr = mapNextValue <int, Buque> (buques);
+      Buque b = *bPtr;
+
+      string tipoOperacion, tipoFecha;
+
+      cout << "Seleccione el tipo de operación (Carga/Descarga): ";
+      cin >> tipoOperacion;
+
+      cout << "Seleccione el tipo de fecha (Salida/Llegada): ";
+      cin >> tipoFecha;
+
+      cout << "Listado de cargas y descargas del día: " << b.fecha << endl;
+      cout << "Id. Buque: " << b.idBuque << ", [" << tipoOperacion << "], grua: " << b.grua << endl;
+      cout << "Nombre: " << b.nombre << ", Darse: " << b.darsena;
+      cout << "Fecha: " << b.fecha << " de " << tipoFecha << ", Cantidad de containers: " << b.cantContainers << endl;
+
+      int orden = 1;
+      int pesoTotal = 0; // Inicializar el peso total
+      Queue<Container>* q = mapGet <int, Queue<Container>> (mContainers, b.idBuque);
+
+      // Asegúrate de que q no sea nullptr antes de usarlo
+      if (q == nullptr) {
+          cout << "No hay contenedores para el buque ID: " << b.idBuque << endl;
+          continue; // Salta al siguiente buque si no hay contenedores
+      }
+
+      cout << "Orden\tId container\tLongitud\tPeso" << endl;
+
+      while (!queueIsEmpty<Container>(*q))
+      {
+         Container c = queueDequeue<Container> (*q);
+         if (estable(c.peso,c.longitud,b.cteFlotacion))
+         {
+            cout << orden << "\t" << c.idContainer << "\t" << c.longitud << "\t" << c.peso << endl;
+            pesoTotal += c.peso; // Acumular peso
+            orden++;
+         }
+         else
+         {
+            queueEnqueue <Container> (*q, c); // Re-enqueue si no es estable
+         }
+      }
+      cout << "Peso total transportado: " << pesoTotal << endl;
+   }
+}
+
+// Funcion principal
+int main()
+{
+   Map<int, Queue<Container>> containers = subirContainers ();
+   Map<int, Buque> buques = subirBuques ();
+
+   procesarBuques (buques, containers);
+
+   return 0;
+}
+
+#endif
