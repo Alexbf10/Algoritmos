@@ -1,0 +1,196 @@
+
+#ifndef _MAIN
+#define _MAIN
+
+#include <iostream>
+#include "biblioteca/funciones/strings.hpp"
+#include "biblioteca/funciones/tokens.hpp"
+#include "biblioteca/funciones/files.hpp"
+#include "biblioteca/tads/parte2/Array.hpp"
+#include "biblioteca/tads/parte2/Map.hpp"
+#include "biblioteca/tads/parte2/List.hpp"
+#include "biblioteca/tads/parte2/Stack.hpp"
+#include "biblioteca/tads/parte2/Queue.hpp"
+#include "biblioteca/tads/parte1/Coll.hpp"
+#include "biblioteca/tads/parte1/MultidimColl.hpp"
+#include "principal.hpp"
+using namespace std;
+
+// EJERCICIO DE PREDIOS DE FUTBOL
+
+struct Predio
+{
+   int idPredio;
+   char nombre[100];
+   char direccion[100];
+   int cantCanchas;
+   int idBarrio;
+};
+
+struct Reserva
+{
+   int idReserva;
+   int idCliente;
+   int idPredio;
+   int diaMes; // 1 a 31
+   char turno; // 'M,'T','N'
+   char celContacto[50];
+};
+
+struct Cancha
+{
+   int idPredio;
+   int nroCancha;
+   double precio;
+   int flgCubierta;
+   char obs[200];
+};
+
+///////////////////////////////////////////
+struct Rechazo
+{
+   Reserva reserva;
+   int motivoRechazo;
+};
+
+struct Turno
+{
+   Map<int,Reserva> aceptadas;
+   Map<int,Rechazo> rechazadas;
+};
+
+struct RCancha
+{
+   Cancha c;
+   Turno manana;
+   Turno tarde;
+   Turno noche;
+};
+
+struct Dia
+{
+   Map<int,RCancha> canchitas;
+};
+
+struct Barrio
+{
+   Predio p;
+   Map<int, Dia> dias;
+};
+/////////////////////////////////////////////
+
+void subirPredios (Map<Predio,int> predios)
+{
+   FILE* f = fopen("PREDIOS.dat","r+b");
+   Predio p = read<Predio>(f);
+   while(!feof(f))
+   {
+      mapPut<Predio,int>(predios,p.idPredio,p);
+      p = read<Predio>(f);
+   }
+   fclose(f);
+};
+
+void subirCanchas(Map<Cancha,int> canchas)
+{
+   FILE* f = fopen("CANCHAS.dat","r+b");
+   Cancha c = read<Cancha>(f);
+   while(!feof(f))
+   {
+      mapPut<Cancha,int>(canchas, c.idPredio * 1000 + c.nroCancha, c);
+      c = read<Cancha>(f);
+   }
+   fclose(f);
+};
+
+void cargarDatos (Map<int, Predio>& predios, Map<int, Cancha>& canchas, Map<int, Barrio> barrios)
+{
+   mapReset<int,Predio>(predios);
+
+   while (mapHasNext<int, Predio> (predios))
+   {
+      Predio p = mapNext<int, Predio> (predios);
+      Barrio b;
+      b.p = p;
+      mapPut<int, Barrio>(barrios,p.idBarrio,b);
+   }
+}
+
+void inviarMensaje(string nroCelular,string mensaje)
+{
+   cout << "Enviando mensaje a " << nroCelular << ":" << mensaje << endl;
+}
+
+void procesarReserva(Reserva r, Map<int, Predio>& predios, Map<int, Cancha>& canchas, Map<int, Barrio>& barrios)
+{
+   // Si el predio no existe
+   if (mapGet<int, Predio>(predios, r.idPredio) == NULL)
+   {
+      // Si el predio no existe, rechazar reserva
+      Rechazo rechazo;
+      rechazo.reserva = r;
+      rechazo.motivoRechazo = 2; // Predio inexistente
+      inviarMensaje(r.celContacto, "Predio no encontrado, su reserva ha sido rechazada.");
+   }
+   else
+   {
+      bool canchaAsignada = false;
+
+      // Iteramos sobre las canchas del predio
+      mapReset<int, Cancha>(canchas);
+      while (mapHasNext<int, Cancha>(canchas))
+      {
+         Cancha c = mapNextValue<int, Cancha>(canchas);
+         if (c.idPredio == r.idPredio)
+         {
+            Turno* turno = NULL;
+            if (r.turno == 'M') turno = &c.manana;
+            else if (r.turno == 'T') turno = &c.tarde;
+            else if (r.turno == 'N') turno = &c.noche;
+
+            if (turno != NULL && mapSize<int, Turno>(turno->aceptadas) < 1) // Verificar disponibilidad
+            {
+               // Asignar reserva al turno si está disponible
+               mapPut<int, Turno>(turno->aceptadas, r.idReserva, r);
+               inviarMensaje(r.celContacto, "Reserva aceptada. Cancha: " + to_string(c.nroCancha) + ", Turno: " + r.turno);
+               canchaAsignada = true;
+            }
+         }
+      }
+
+      // Si no se encontró cancha disponible, rechazar
+      if (!canchaAsignada)
+      {
+         Rechazo rechazo;
+         rechazo.reserva = r;
+         rechazo.motivoRechazo = 1; // Cancha no disponible
+         inviarMensaje(r.celContacto, "Cancha no disponible, su reserva ha sido rechazada.");
+      }
+   }
+}
+
+int main()
+{
+   Map<int, Predio> predios = map<int, Predio> ();
+   Map<int, Cancha> canchas = map<int, Cancha> ();
+   Map<int, Barrio> barrios = map<int, Barrio> ();
+
+   subirPredios(predios);
+   subirCanchas(canchas);
+   cargarDatos(predios, canchas, barrios);
+
+   FILE* f = fopen("RESERVAS.dat", "r+b");
+   Reserva r = read<Reserva> (f);
+   FILE* fRechazos = fopen("RECHAZOS.dat", "w+b");
+   while (!feof(f))
+   {
+      procesarReserva (r, predios, canchas, barrios);
+      r = read<Reserva> (f);
+   }
+
+   fclose (f);
+
+   return 0;
+};
+
+#endif
