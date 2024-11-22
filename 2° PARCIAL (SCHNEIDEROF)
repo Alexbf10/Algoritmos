@@ -1,0 +1,187 @@
+
+#ifndef _MAIN
+#define _MAIN
+#include <iostream>
+#include "biblioteca/funciones/strings.hpp"
+#include "biblioteca/funciones/tokens.hpp"
+#include "biblioteca/funciones/files.hpp"
+#include "biblioteca/tads/parte2/Array.hpp"
+#include "biblioteca/tads/parte2/Map.hpp"
+#include "biblioteca/tads/parte2/List.hpp"
+#include "biblioteca/tads/parte2/Stack.hpp"
+#include "biblioteca/tads/parte2/Queue.hpp"
+#include "biblioteca/tads/parte1/Coll.hpp"
+#include "biblioteca/tads/parte1/MultidimColl.hpp"
+#include "principal.hpp"
+using namespace std;
+
+struct Fecha
+{
+
+};
+
+Fecha fechaGetHoy()
+{
+   Fecha hoy;
+   return hoy;
+}
+
+struct Hora
+{
+
+};
+
+Hora horaSumarMinutos(Hora h1, int minutos)
+{
+   Hora h={0,0};
+   return h;
+}
+////////////////////////////////////////////////
+
+struct TurnoPre
+{
+   int idRes;
+   int idPac;
+   int idPra;
+   Fecha fPra; //TAD
+   Hora hPra;  //TAD
+};
+
+struct Practica
+{
+   int idPra;
+   char desc[100];
+   int nTurnos;
+   int idProf; //id Profesional
+};
+
+struct TBache
+{
+   Fecha f; //fecha turno
+   Hora h;  //hora(ej: 8:20 , 9:00 , 9:40)
+};
+////////////////////////////////////////////////
+
+struct RTurno
+{
+   TurnoPre turno;
+   Practica prac;
+};
+
+struct Aceptado
+{
+   int idAceptado;
+   Fecha fecha;
+   Hora hora;
+};
+////////////////////////////////////////////////
+
+Map<int, Practica> subirPracticas()
+{
+   Map<int, Practica> mPracticas = map<int, Practica>();
+
+   FILE* f = fopen("PRACTICAS.dat","r+b");
+
+   Practica practica = read<Practica>(f);
+   while(!feof(f))
+   {
+      mapPut(mPracticas, practica.idPra, practica);
+      practica = read<Practica>(f);
+   }
+
+   fclose(f);
+
+   return mPracticas;
+}
+
+void procesarPto1(List<RTurno>& lRTurnos)
+{
+
+   FILE* f = fopen("TURNOS_PRE","r+b");
+   RTurno rTur = read<RTurno>(f);
+
+   Map<Fecha, map<Hora, bool>> fechaHora = map<Fecha, map<Hora, bool>> ();
+   while(!feof(f)))
+   {
+      bool rechazado = false;
+      map<Hora, bool> mBool = mapGet(fechaHora,rTur.turno.fecha);
+      for (int i = rTur.turno.hPra; i < rTur.turno.hPra + rTur.prac.nTurnos*20; i=i+20)
+      {
+         bool b = mapGet (mBool, i);
+         if (b == false)
+         {
+            rechazado = true;
+         }
+      }
+      if (rechazado == false)
+      {
+         for (int i = rTur.turno.hPra; i < rTur.turno.hPra + rTur.prac.nTurnos*20; i=i+20)
+         {
+            bool b = mapGet (mBool, i);
+            b = false;
+         }
+         Aceptado acep;
+         acep.fecha = rTur.turno.fecha;
+         acep.hora = rTur.turno.hPra;
+         acep.id = rTur.turno.idPac;
+
+         listAdd(aceptados,acep)
+      }
+      rTur = read<RTurno>(f);
+   }
+   fclose(f);
+}
+
+void procesarPto2(Map<Fecha, map<Hora, bool>> fechaHora)
+{
+   for (int i = 0; i < mapSize(fechahora); i++)
+   {
+      Map<Fecha, bool> mBool = mapGet (fechaHora, i);
+      for (int j = 0; j < mapSize(mBool); j+20)
+      {
+         bool libre = mapGet (mBool, j);
+         if (libre == true)
+         {
+            TBache tbache;
+            tbache.f = i;
+            tbache.h = j;
+            write (h, TBache)
+         }
+      }
+   }
+}
+
+void mostrarPto1(List<Aceptado> aceptados)
+{
+   listReset<Aceptado>(aceptados);
+   Aceptado* aceptado = listNext<Aceptado>(aceptados);
+   while(listHasNext(aceptados))
+   {
+      cout << "id Paciente: " << aceptado->idAceptado << endl;
+      /*cout<<"Practica: "<<aceptado->fecha.dia<<endl;*/
+      cout << "Fecha: " << aceptado->fecha.dia << "/" << aceptado->fecha.hora << "/" << aceptado->fecha.anio << endl;
+      cout << "Hora inicio: " << aceptado->hora.hora << ":" << aceptado->hora.minuto << endl;
+
+      aceptado = listNext<Aceptado>(aceptados);
+   }
+}
+
+int main()
+{
+   // Subo los archivos y armo una lista donde tengo al mismo tiempo los turnos
+   // con su practica correspondiente
+   Map<int, Practica> mPracticas = subirPracticas();
+   List<Aceptado> aceptados = List<Aceptado>();
+
+   //proceso cuales son los turnos aceptados y actualiza la lista de rTurnos
+   procesarPto1(aceptados);
+   /*Map<Fecha, Map<Hora, bool>> fechaHora;*/
+   procesarPto2(fechaHora);
+
+   //muestro el resultado de los turnos aceptados con sus datos correspondientes
+   mostrarPto1(aceptados);
+
+   return 0;
+}
+
+#endif
